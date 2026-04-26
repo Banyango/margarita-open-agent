@@ -9,12 +9,10 @@ class ToolCallCallingMetadata:
     Attributes:
         name: The name of the tool being called.
         arguments: The arguments passed to the tool.
-        state: Always ``"calling"``.
     """
 
     name: str
     arguments: dict
-    state: Literal["calling"] = "calling"
 
 
 @dataclass

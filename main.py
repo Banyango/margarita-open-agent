@@ -16,6 +16,7 @@ from margarita_open_agent.core.models.tool import (
     ToolFunction,
 )
 from margarita_open_agent.session import AgentSession
+from margarita_open_agent.session_event import SessionEventType
 
 DEFINITION = ToolDefinition(
     type="function",
@@ -67,6 +68,7 @@ async def run() -> None:
         system_message=(
             "You are a coding agent. Use tools whenever you need information from the filesystem."
             "If a user gives you a filename use the find file to get the full path, then use the read file tool to read the contents."
+            "When done answering you must respond with <DONE>"
         ),
         on_user_input_request=UserInputHandlerImpl(),
         on_permission_request=PermissionsRequestImpl(),
@@ -87,7 +89,7 @@ async def run() -> None:
             in_thinking = False
             status_active = False
             async for event in session.send_and_stream_async(prompt):
-                if event.type == "status":
+                if event.type == SessionEventType.ASSISTANT_REASONING:
                     if in_thinking:
                         print("\033[0m", end="", flush=True)
                         in_thinking = False
@@ -97,25 +99,14 @@ async def run() -> None:
                         flush=True,
                     )
                     status_active = True
-                elif event.type == "tool_call":
+                elif event.type == SessionEventType.TOOL_EXECUTION_START:
                     if in_thinking:
                         print("\033[0m", end="", flush=True)
                         in_thinking = False
-                    state = event.metadata.state
                     name = event.metadata.name
-                    if state == "calling":
-                        args = event.metadata.arguments or {}
-                        args_str = (
-                            ", ".join(f"{k}={v!r}" for k, v in args.items())
-                            if args
-                            else ""
-                        )
-                        label = f"⚙ {name}({args_str})"
-                        print(f"\r\033[33m{label}\033[0m\033[K", end="", flush=True)
-                    else:
-                        print(f"\r\033[32m✓ {name}\033[0m\033[K", flush=True)
+                    print(f"\r\033[32m✓ {name}\033[0m\033[K", flush=True)
                     status_active = True
-                elif event.type == "thinking":
+                elif event.type == SessionEventType.TOOL_EXECUTION_COMPLETE:
                     if status_active:
                         print()  # move past status line
                         status_active = False

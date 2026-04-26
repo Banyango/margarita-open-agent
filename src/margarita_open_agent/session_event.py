@@ -72,7 +72,7 @@ class SessionEventType(Enum):
     TOOL_EXECUTION_PARTIAL_RESULT = "tool.execution_partial_result"
     TOOL_EXECUTION_PROGRESS = "tool.execution_progress"
     TOOL_EXECUTION_START = "tool.execution_start"
-    TOOL_USER_REQUESTED = "tool.user_requested"
+    TOOL_REQUESTED = "tool.user_requested"
     USER_INPUT_COMPLETED = "user_input.completed"
     USER_INPUT_REQUESTED = "user_input.requested"
     USER_MESSAGE = "user.message"

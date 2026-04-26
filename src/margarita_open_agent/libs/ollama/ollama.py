@@ -11,6 +11,8 @@ from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
 from margarita_open_agent.core.models.message import Message
 from margarita_open_agent.core.models.stream_event import StreamEvent
 from margarita_open_agent.core.models.tool import ToolDefinition
+from margarita_open_agent.core.models.tool_call_event import ToolCallCallingMetadata
+from margarita_open_agent.session_event import SessionEventType
 
 
 @dataclass
@@ -236,10 +238,22 @@ class OllamaLLMClient(LLMClient):
             msg = chunk.get("message", {})
             thinking = msg.get("thinking", "")
             content = msg.get("content", "")
+            # todo might consider pooling here.
             if thinking:
-                yield StreamEvent(type="thinking", text=thinking)
+                yield StreamEvent(type=SessionEventType.ASSISTANT_REASONING_DELTA, text=thinking)
             if content:
-                yield StreamEvent(type="content", text=content)
+                yield StreamEvent(type=SessionEventType.ASSISTANT_STREAMING_DELTA, text=content)
+            if chunk.message.tool_calls:
+                for tool_call in chunk.message.tool_calls:
+                    yield StreamEvent(
+                        type=SessionEventType.TOOL_REQUESTED,
+                        text=f"Tool call: {tool_call.function.name}",
+                        metadata=ToolCallCallingMetadata(
+                            name=tool_call.function.name,
+                            arguments=dict(tool_call.function.arguments),
+                        ),
+                    )
+
 
     @staticmethod
     def _get_model_config(model: LLMModelEnum) -> ModelConfig:

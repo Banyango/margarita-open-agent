@@ -65,13 +65,11 @@ class ToolRegistry:
         Returns:
             The output string returned by the tool.
         """
-        try:
-            if name not in self._tool_registry:
-                return await self.user_tool_handler(
-                    ToolCallRequest(name=name, arguments=arguments)
-                )
+        if name not in self._tool_registry:
+            return await self.user_tool_handler(
+                ToolCallRequest(name=name, arguments=arguments)
+            )
 
-            tool = self._tool_registry[name]
-            return await tool.execute(arguments)
-        except Exception as e:
-            return f"Error: tool '{name}' raised {type(e).__name__}: {e}"
+        tool = self._tool_registry[name]
+
+        return await tool.execute(arguments)

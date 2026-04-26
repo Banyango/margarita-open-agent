@@ -13,5 +13,6 @@ class ToolCall(TypedDict):
 class Message(TypedDict, total=False):
     role: Literal["user", "assistant", "system", "tool"]
     content: str
-    thinking: bool
+    thinking: str
+    tool_name: str | None
     tool_calls: list[ToolCall]

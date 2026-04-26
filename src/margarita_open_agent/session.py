@@ -11,7 +11,7 @@ from margarita_open_agent.libs.tools.registry import ToolRegistry
 from margarita_open_agent.container import container
 from margarita_open_agent.core.llm import LLMClient
 from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
-from margarita_open_agent.core.models.message import Message
+from margarita_open_agent.core.models.message import Message, ToolCall, ToolCallFunction
 from margarita_open_agent.core.models.stream_event import StreamEvent
 from margarita_open_agent.core.models.tool import ToolDefinition
 from margarita_open_agent.core.models.tool_call_event import (
@@ -90,50 +90,63 @@ class AgentSession:
 
         self._messages.append(Message(role="user", content=prompt))
 
+        yield StreamEvent(type=SessionEventType.ASSISTANT_REASONING, text="Thinking...")
+
         while True:
-            yield StreamEvent(type="status", text="Thinking...")
-            response = await llm_client.chat(self.model, self._messages, tools)
+            message = Message(role="assistant", content="", thinking="", tool_calls=[])
+            async for event in llm_client.stream(self.model, self._messages, tools):
+                if event.type == SessionEventType.ASSISTANT_STREAMING_DELTA:
+                    message["content"] += event.text
+                elif event.type == SessionEventType.ASSISTANT_REASONING_DELTA:
+                    message["thinking"] += event.text
+                elif event.type == SessionEventType.TOOL_REQUESTED:
+                    name = event.metadata.name
+                    arguments = event.metadata.arguments
 
-            if not response.get("tool_calls"):
-                full_content = ""
-                async for event in llm_client.stream(self.model, self._messages, tools):
-                    if event.type == "content":
-                        full_content += event.text
-                    yield event
-                self._messages.append(Message(role="assistant", content=full_content))
-                return
-
-            self._messages.append(response)
-
-            for tool_call in response["tool_calls"]:
-                name = tool_call["function"]["name"]
-                arguments = tool_call["function"]["arguments"]
-
-                yield StreamEvent(
-                    type=SessionEventType.TOOL_EXECUTION_START,
-                    text=f"Calling tool: {name}",
-                    metadata=ToolCallCallingMetadata(name=name, arguments=arguments),
-                )
-
-                try:
-                    result = await tool_executor.execute(name, arguments)
+                    # todo fix - don't serialize into core model only to deserialize here.
+                    message["tool_calls"].append(ToolCall(function=ToolCallFunction(
+                        name=name,
+                        arguments=arguments,
+                    )))
+                    self._messages.append(message)
+                    message = None
 
                     yield StreamEvent(
-                        type=SessionEventType.TOOL_EXECUTION_COMPLETE,
-                        text=f"Tool {name} finished",
-                        metadata=ToolCallDoneMetadata(
-                            name=name, arguments=arguments, result=result, success=True
-                        ),
+                        type=SessionEventType.TOOL_EXECUTION_START,
+                        text=f"Calling tool: {name}",
+                        metadata=ToolCallCallingMetadata(name=name, arguments=arguments),
                     )
-                    self._messages.append(Message(role="tool", content=result))
-                finally:
-                    yield StreamEvent(
-                        type=SessionEventType.TOOL_EXECUTION_COMPLETE,
-                        text=f"Tool {name} execution failed",
-                        metadata=ToolCallDoneMetadata(
-                            name=name, arguments=arguments, success=False, result=None
-                        ),
-                    )
+
+                    result = ""
+                    try:
+                        result = await tool_executor.execute(name, arguments)
+
+                        yield StreamEvent(
+                            type=SessionEventType.TOOL_EXECUTION_COMPLETE,
+                            text=f"Tool {name} finished",
+                            metadata=ToolCallDoneMetadata(
+                                name=name, arguments=arguments, result=result, success=True
+                            ),
+                        )
+                    except Exception as e:
+                        yield StreamEvent(
+                            type=SessionEventType.TOOL_EXECUTION_COMPLETE,
+                            text=f"Tool {name} execution failed",
+                            metadata=ToolCallDoneMetadata(
+                                name=name, arguments=arguments, success=False, result=str(e)
+                            ),
+                        )
+                    finally:
+                        self._messages.append(Message(role="tool", tool_name=name, content=result))
+                yield event
+
+            if message is not None:
+                self._messages.append(message)
+
+                # important this breaks us out of the loop.
+                if len(message["tool_calls"]) == 0:
+                    break
+
 
     async def _run_async(self, prompt: str) -> str:
         """Internal runner that sends the prompt to the LLM, handles tool calls,
