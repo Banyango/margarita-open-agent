@@ -11,6 +11,7 @@ class ToolCallCallingMetadata:
         arguments: The arguments passed to the tool.
     """
 
+    tool_id: str
     name: str
     arguments: dict
 

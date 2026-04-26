@@ -1,4 +1,5 @@
 import dataclasses
+import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Literal
@@ -249,6 +250,7 @@ class OllamaLLMClient(LLMClient):
                         type=SessionEventType.TOOL_REQUESTED,
                         text=f"Tool call: {tool_call.function.name}",
                         metadata=ToolCallCallingMetadata(
+                            tool_id=str(uuid.uuid1()),
                             name=tool_call.function.name,
                             arguments=dict(tool_call.function.arguments),
                         ),
