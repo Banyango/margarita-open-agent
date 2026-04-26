@@ -5,6 +5,7 @@ from margarita_open_agent.core.models.tool_call_event import (
     ToolCallCallingMetadata,
     ToolCallDoneMetadata,
 )
+from margarita_open_agent.session_event import SessionEventType
 
 
 @dataclass
@@ -18,6 +19,6 @@ class StreamEvent:
             a :class:`ToolCallCallingMetadata` or :class:`ToolCallDoneMetadata` instance.
     """
 
-    type: Literal["thinking", "content", "status", "tool_call"]
+    type: SessionEventType
     text: str
     metadata: ToolCallCallingMetadata | ToolCallDoneMetadata | None = None

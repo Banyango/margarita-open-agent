@@ -30,5 +30,6 @@ class ToolCallDoneMetadata:
 
     name: str
     arguments: dict
-    result: str
+    result: str | None
     state: Literal["done"] = "done"
+    success: bool = False

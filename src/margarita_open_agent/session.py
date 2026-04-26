@@ -18,6 +18,7 @@ from margarita_open_agent.core.models.tool_call_event import (
     ToolCallCallingMetadata,
     ToolCallDoneMetadata,
 )
+from margarita_open_agent.session_event import SessionEventType
 
 
 class AgentSession:
@@ -109,21 +110,30 @@ class AgentSession:
                 arguments = tool_call["function"]["arguments"]
 
                 yield StreamEvent(
-                    type="tool_call",
+                    type=SessionEventType.TOOL_EXECUTION_START,
                     text=f"Calling tool: {name}",
                     metadata=ToolCallCallingMetadata(name=name, arguments=arguments),
                 )
 
-                result = await tool_executor.execute(name, arguments)
+                try:
+                    result = await tool_executor.execute(name, arguments)
 
-                yield StreamEvent(
-                    type="tool_call",
-                    text=f"Tool {name} finished",
-                    metadata=ToolCallDoneMetadata(
-                        name=name, arguments=arguments, result=result
-                    ),
-                )
-                self._messages.append(Message(role="tool", content=result))
+                    yield StreamEvent(
+                        type=SessionEventType.TOOL_EXECUTION_COMPLETE,
+                        text=f"Tool {name} finished",
+                        metadata=ToolCallDoneMetadata(
+                            name=name, arguments=arguments, result=result, success=True
+                        ),
+                    )
+                    self._messages.append(Message(role="tool", content=result))
+                finally:
+                    yield StreamEvent(
+                        type=SessionEventType.TOOL_EXECUTION_COMPLETE,
+                        text=f"Tool {name} execution failed",
+                        metadata=ToolCallDoneMetadata(
+                            name=name, arguments=arguments, success=False, result=None
+                        )
+                    )
 
     async def _run_async(self, prompt: str) -> str:
         """Internal runner that sends the prompt to the LLM, handles tool calls,
