@@ -145,6 +145,7 @@ class AgentSession:
 
                 # important this breaks us out of the loop.
                 if len(message["tool_calls"]) == 0:
+                    yield StreamEvent(type=SessionEventType.ASSISTANT_TURN_END, text="")
                     break
 
 
