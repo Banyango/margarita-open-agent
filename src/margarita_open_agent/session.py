@@ -132,7 +132,7 @@ class AgentSession:
                         text=f"Tool {name} execution failed",
                         metadata=ToolCallDoneMetadata(
                             name=name, arguments=arguments, success=False, result=None
-                        )
+                        ),
                     )
 
     async def _run_async(self, prompt: str) -> str:

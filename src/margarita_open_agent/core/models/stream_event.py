@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Literal
 
 from margarita_open_agent.core.models.tool_call_event import (
     ToolCallCallingMetadata,
