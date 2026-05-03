@@ -14,7 +14,11 @@ def ollama_client() -> AsyncClient:
     Returns:
         An instance of ollama.AsyncClient.
     """
+    api_key = os.getenv("OLLAMA_API_KEY")
+
+    if not api_key:
+        return AsyncClient()
 
     return AsyncClient(
-        headers={"Authorization": "Bearer " + os.environ.get("OLLAMA_API_KEY")}
+        headers={"Authorization": "Bearer " + os.environ.get("OLLAMA_API_KEY", "")}
     )

@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from collections.abc import AsyncIterator
 
 from margarita_open_agent.core.interfaces import (
@@ -6,6 +7,7 @@ from margarita_open_agent.core.interfaces import (
     UserInputCallbackHandler,
     UserToolCallbackHandler,
 )
+from margarita_open_agent.core.models.session import SessionStartedMetadata
 from margarita_open_agent.libs.tools.registry import ToolRegistry
 
 from margarita_open_agent.container import container
@@ -86,14 +88,18 @@ class AgentSession:
         llm_client = await container.get(LLMClient)
         tool_executor = await container.get(ToolRegistry)
 
-        tools = tool_executor.get_tool_definitions() + self.additional_tools
+        tools = self.additional_tools + tool_executor.get_tool_definitions()
 
         self._messages.append(Message(role="user", content=prompt))
 
-        yield StreamEvent(type=SessionEventType.ASSISTANT_REASONING, text="Thinking...")
+        yield StreamEvent(type=SessionEventType.SESSION_START, metadata=SessionStartedMetadata(
+            id=str(uuid.uuid1()),
+            model_id=self.model.value
+        ))
 
         while True:
             message = Message(role="assistant", content="", thinking="", tool_calls=[])
+            message_appended = False
             async for event in llm_client.stream(self.model, self._messages, tools):
                 if event.type == SessionEventType.ASSISTANT_STREAMING_DELTA:
                     message["content"] += event.text
@@ -102,19 +108,21 @@ class AgentSession:
                 elif event.type == SessionEventType.TOOL_REQUESTED:
                     name = event.metadata.name
                     arguments = event.metadata.arguments
+                    id = event.metadata.tool_call_id
 
                     # todo fix - don't serialize into core model only to deserialize here.
                     message["tool_calls"].append(ToolCall(function=ToolCallFunction(
                         name=name,
                         arguments=arguments,
                     )))
-                    self._messages.append(message)
-                    message = None
+                    if not message_appended:
+                        self._messages.append(message)
+                        message_appended = True
 
                     yield StreamEvent(
                         type=SessionEventType.TOOL_EXECUTION_START,
                         text=f"Calling tool: {name}",
-                        metadata=ToolCallCallingMetadata(name=name, arguments=arguments),
+                        metadata=ToolCallCallingMetadata(tool_call_id=id, name=name, arguments=arguments),
                     )
 
                     result = ""
@@ -125,7 +133,7 @@ class AgentSession:
                             type=SessionEventType.TOOL_EXECUTION_COMPLETE,
                             text=f"Tool {name} finished",
                             metadata=ToolCallDoneMetadata(
-                                name=name, arguments=arguments, result=result, success=True
+                                tool_call_id=id, name=name, arguments=arguments, result=result, success=True
                             ),
                         )
                     except Exception as e:
@@ -133,20 +141,25 @@ class AgentSession:
                             type=SessionEventType.TOOL_EXECUTION_COMPLETE,
                             text=f"Tool {name} execution failed",
                             metadata=ToolCallDoneMetadata(
-                                name=name, arguments=arguments, success=False, result=str(e)
+                               tool_call_id=id, name=name, arguments=arguments, success=False, result=str(e)
                             ),
                         )
                     finally:
-                        self._messages.append(Message(role="tool", tool_name=name, content=result))
+                        self._messages.append(Message(role="tool", tool_name=name, content=str(result)))
                 yield event
 
-            if message is not None:
+            if not message_appended:
                 self._messages.append(message)
 
                 # important this breaks us out of the loop.
                 if len(message["tool_calls"]) == 0:
                     yield StreamEvent(type=SessionEventType.ASSISTANT_TURN_END, text="")
                     break
+
+        yield StreamEvent(
+            type=SessionEventType.SESSION_SHUTDOWN,
+            text=f"session complete",
+        )
 
 
     async def _run_async(self, prompt: str) -> str:
@@ -183,4 +196,4 @@ class AgentSession:
                 name = tool_call["function"]["name"]
                 arguments = tool_call["function"]["arguments"]
                 result = await tool_executor.execute(name, arguments)
-                self._messages.append(Message(role="tool", content=result))
+                self._messages.append(Message(role="tool", content=str(result)))

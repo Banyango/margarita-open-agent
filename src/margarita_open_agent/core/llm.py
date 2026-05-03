@@ -26,7 +26,7 @@ class LLMClient(ABC):
 
     @abstractmethod
     async def stream(
-        self, model: LLMModelEnum, messages: list[Message], tools: list[ToolDefinition]
+        self, model: LLMModelEnum, messages: list[Message], tools: list[ToolDefinition], system_prompt: str
     ) -> AsyncIterator[StreamEvent]:
         """Stream the assistant reply as ``StreamEvent`` objects.
 
@@ -37,6 +37,7 @@ class LLMClient(ABC):
             model: The LLM model enum to select a specific model/config.
             messages: Conversation history provided to the model.
             tools: Optional list of tools the model may call.
+            system_prompt: Optional system prompt for the model.
 
         Yields:
             :class:`StreamEvent` instances with ``type`` set to either

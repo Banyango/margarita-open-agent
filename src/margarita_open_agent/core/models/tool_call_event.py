@@ -11,7 +11,7 @@ class ToolCallCallingMetadata:
         arguments: The arguments passed to the tool.
     """
 
-    tool_id: str
+    tool_call_id: str
     name: str
     arguments: dict
 
@@ -27,6 +27,7 @@ class ToolCallDoneMetadata:
         state: Always ``"done"``.
     """
 
+    tool_call_id: str
     name: str
     arguments: dict
     result: str | None
