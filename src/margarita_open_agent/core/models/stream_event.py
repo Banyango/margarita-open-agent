@@ -5,7 +5,7 @@ from margarita_open_agent.core.models.tool_call_event import (
     ToolCallCallingMetadata,
     ToolCallDoneMetadata,
 )
-from margarita_open_agent.session_event import SessionEventType
+from margarita_open_agent.core.sessions.session_event import SessionEventType
 
 
 @dataclass
@@ -21,4 +21,6 @@ class StreamEvent:
 
     type: SessionEventType
     text: str | None = None
-    metadata: ToolCallCallingMetadata | ToolCallDoneMetadata | SessionStartedMetadata | None = None
+    metadata: (
+        ToolCallCallingMetadata | ToolCallDoneMetadata | SessionStartedMetadata | None
+    ) = None

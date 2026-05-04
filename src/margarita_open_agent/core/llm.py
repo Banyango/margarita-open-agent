@@ -1,7 +1,6 @@
 from abc import abstractmethod, ABC
 from collections.abc import AsyncIterator
 
-from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
 from margarita_open_agent.core.models.message import Message
 from margarita_open_agent.core.models.stream_event import StreamEvent
 from margarita_open_agent.core.models.tool import ToolDefinition
@@ -10,7 +9,7 @@ from margarita_open_agent.core.models.tool import ToolDefinition
 class LLMClient(ABC):
     @abstractmethod
     async def chat(
-        self, model: LLMModelEnum, messages: list[Message], tools: list[ToolDefinition]
+        self, model: str, messages: list[Message], tools: list[ToolDefinition]
     ) -> Message:
         """Run a chat call against the underlying LLM implementation.
 
@@ -26,7 +25,10 @@ class LLMClient(ABC):
 
     @abstractmethod
     async def stream(
-        self, model: LLMModelEnum, messages: list[Message], tools: list[ToolDefinition], system_prompt: str
+        self,
+        model: str,
+        messages: list[Message],
+        tools: list[ToolDefinition],
     ) -> AsyncIterator[StreamEvent]:
         """Stream the assistant reply as ``StreamEvent`` objects.
 
@@ -37,7 +39,6 @@ class LLMClient(ABC):
             model: The LLM model enum to select a specific model/config.
             messages: Conversation history provided to the model.
             tools: Optional list of tools the model may call.
-            system_prompt: Optional system prompt for the model.
 
         Yields:
             :class:`StreamEvent` instances with ``type`` set to either

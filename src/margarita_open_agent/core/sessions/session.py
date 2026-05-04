@@ -12,7 +12,6 @@ from margarita_open_agent.libs.tools.registry import ToolRegistry
 
 from margarita_open_agent.container import container
 from margarita_open_agent.core.llm import LLMClient
-from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
 from margarita_open_agent.core.models.message import Message, ToolCall, ToolCallFunction
 from margarita_open_agent.core.models.stream_event import StreamEvent
 from margarita_open_agent.core.models.tool import ToolDefinition
@@ -20,7 +19,7 @@ from margarita_open_agent.core.models.tool_call_event import (
     ToolCallCallingMetadata,
     ToolCallDoneMetadata,
 )
-from margarita_open_agent.session_event import SessionEventType
+from margarita_open_agent.core.sessions.session_event import SessionEventType
 
 
 class AgentSession:
@@ -33,7 +32,7 @@ class AgentSession:
 
     def __init__(
         self,
-        model: LLMModelEnum,
+        model: str,
         system_message: str,
         additional_tools: list[ToolDefinition],
         on_user_input_request: UserInputCallbackHandler,
@@ -92,10 +91,10 @@ class AgentSession:
 
         self._messages.append(Message(role="user", content=prompt))
 
-        yield StreamEvent(type=SessionEventType.SESSION_START, metadata=SessionStartedMetadata(
-            id=str(uuid.uuid1()),
-            model_id=self.model.value
-        ))
+        yield StreamEvent(
+            type=SessionEventType.SESSION_START,
+            metadata=SessionStartedMetadata(id=str(uuid.uuid1()), model_id=self.model),
+        )
 
         while True:
             message = Message(role="assistant", content="", thinking="", tool_calls=[])
@@ -111,10 +110,14 @@ class AgentSession:
                     id = event.metadata.tool_call_id
 
                     # todo fix - don't serialize into core model only to deserialize here.
-                    message["tool_calls"].append(ToolCall(function=ToolCallFunction(
-                        name=name,
-                        arguments=arguments,
-                    )))
+                    message["tool_calls"].append(
+                        ToolCall(
+                            function=ToolCallFunction(
+                                name=name,
+                                arguments=arguments,
+                            )
+                        )
+                    )
                     if not message_appended:
                         self._messages.append(message)
                         message_appended = True
@@ -122,7 +125,9 @@ class AgentSession:
                     yield StreamEvent(
                         type=SessionEventType.TOOL_EXECUTION_START,
                         text=f"Calling tool: {name}",
-                        metadata=ToolCallCallingMetadata(tool_call_id=id, name=name, arguments=arguments),
+                        metadata=ToolCallCallingMetadata(
+                            tool_call_id=id, name=name, arguments=arguments
+                        ),
                     )
 
                     result = ""
@@ -133,7 +138,11 @@ class AgentSession:
                             type=SessionEventType.TOOL_EXECUTION_COMPLETE,
                             text=f"Tool {name} finished",
                             metadata=ToolCallDoneMetadata(
-                                tool_call_id=id, name=name, arguments=arguments, result=result, success=True
+                                tool_call_id=id,
+                                name=name,
+                                arguments=arguments,
+                                result=result,
+                                success=True,
                             ),
                         )
                     except Exception as e:
@@ -141,11 +150,17 @@ class AgentSession:
                             type=SessionEventType.TOOL_EXECUTION_COMPLETE,
                             text=f"Tool {name} execution failed",
                             metadata=ToolCallDoneMetadata(
-                               tool_call_id=id, name=name, arguments=arguments, success=False, result=str(e)
+                                tool_call_id=id,
+                                name=name,
+                                arguments=arguments,
+                                success=False,
+                                result=str(e),
                             ),
                         )
                     finally:
-                        self._messages.append(Message(role="tool", tool_name=name, content=str(result)))
+                        self._messages.append(
+                            Message(role="tool", tool_name=name, content=str(result))
+                        )
                 yield event
 
             if not message_appended:
@@ -158,9 +173,8 @@ class AgentSession:
 
         yield StreamEvent(
             type=SessionEventType.SESSION_SHUTDOWN,
-            text=f"session complete",
+            text="",
         )
-
 
     async def _run_async(self, prompt: str) -> str:
         """Internal runner that sends the prompt to the LLM, handles tool calls,

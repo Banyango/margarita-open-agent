@@ -5,7 +5,7 @@ from margarita_open_agent.core.interfaces import (
     PermissionCallbackHandler,
     UserToolCallbackHandler,
 )
-from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
+from margarita_open_agent.core.models.errors import ModelNotSpecifiedError
 from margarita_open_agent.core.models.permissions import (
     PermissionsRequest,
     UserInputRequest,
@@ -15,8 +15,8 @@ from margarita_open_agent.core.models.tool import (
     ToolDefinition,
     ToolFunction,
 )
-from margarita_open_agent.session import AgentSession
-from margarita_open_agent.session_event import SessionEventType
+from margarita_open_agent.core.sessions.session import AgentSession
+from margarita_open_agent.core.sessions.session_event import SessionEventType
 
 DEFINITION = ToolDefinition(
     type="function",
@@ -64,7 +64,7 @@ class PermissionsRequestImpl(PermissionCallbackHandler):
 
 async def run() -> None:
     session = AgentSession(
-        model=LLMModelEnum.GEMMA_4_E2B,
+        model="granite4.1:3b",
         system_message=(
             "You are a coding agent. Use tools whenever you need information from the filesystem."
             "If a user gives you a filename use the find file to get the full path, then use the read file tool to read the contents."
@@ -129,6 +129,8 @@ async def run() -> None:
             print("\n")
         except TimeoutError:
             print("\nRequest timed out.\n")
+        except ModelNotSpecifiedError:
+            print("\nModel Not Specified.\n")
         except Exception as exc:
             print(f"\nError: {exc}\n")
 

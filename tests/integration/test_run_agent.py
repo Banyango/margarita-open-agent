@@ -9,10 +9,9 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from ollama import AsyncClient
 
-from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
 from margarita_open_agent.libs.ollama.ollama import OllamaLLMClient
 from margarita_open_agent.libs.tools import registry
-from margarita_open_agent.session import AgentSession
+from margarita_open_agent.core.sessions.session import AgentSession
 
 
 def make_session(llm_client: OllamaLLMClient) -> tuple[AgentSession, patch]:
@@ -21,10 +20,9 @@ def make_session(llm_client: OllamaLLMClient) -> tuple[AgentSession, patch]:
     container = mock_container.start()
     container.get = AsyncMock(return_value=llm_client)
     session = AgentSession(
-        model=LLMModelEnum.GEMMA_4,
+        model="gemma4:e2b",
         system_message="You are a coding agent. Use tools whenever you need information from the filesystem.",
         additional_tools=registry.get_definitions(),
-        tool_executor=registry.execute,
         on_user_input_request=AsyncMock(),
         on_permission_request=AsyncMock(),
     )
@@ -40,7 +38,7 @@ def llm_client() -> OllamaLLMClient:
 async def test_basic_chat(llm_client):
     """Model responds without using any tools."""
     response = await llm_client.chat(
-        LLMModelEnum.GEMMA_4,
+        "gemma4:e2b",
         [{"role": "user", "content": "Reply with exactly one word: hello"}],
         [],
     )

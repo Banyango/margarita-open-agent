@@ -43,39 +43,38 @@ uv sync
 
 ```python
 import asyncio
-from margarita_open_agent.core.models.llm_model_enum import LLMModelEnum
 from margarita_open_agent.core.models.permissions import PermissionsRequest, UserInputRequest
 from margarita_open_agent.core.interfaces import (
-    PermissionCallbackHandler,
-    UserInputCallbackHandler,
-    UserToolCallbackHandler,
+  PermissionCallbackHandler,
+  UserInputCallbackHandler,
+  UserToolCallbackHandler,
 )
-from margarita_open_agent.session import AgentSession
+from margarita_open_agent.core.sessions.session import AgentSession
 
 
 class PermissionsImpl(PermissionCallbackHandler):
-    async def __call__(self, request: PermissionsRequest) -> bool:
-        answer = input(f"Allow {request.kind}? [y/N] ").strip().lower()
-        return answer == "y"
+  async def __call__(self, request: PermissionsRequest) -> bool:
+    answer = input(f"Allow {request.kind}? [y/N] ").strip().lower()
+    return answer == "y"
 
 
 class UserInputImpl(UserInputCallbackHandler):
-    async def __call__(self, request: UserInputRequest) -> str:
-        return input(f"[Agent asks] {request.question}\n> ").strip()
+  async def __call__(self, request: UserInputRequest) -> str:
+    return input(f"[Agent asks] {request.question}\n> ").strip()
 
 
 async def main():
-    session = AgentSession(
-        model=LLMModelEnum.LLAMA3,
-        system_message="You are a helpful assistant.",
-        additional_tools=[],
-        on_user_input_request=UserInputImpl(),
-        on_permission_request=PermissionsImpl(),
-        on_custom_tool_request=None,
-    )
+  session = AgentSession(
+    model="llama:latest",
+    system_message="You are a helpful assistant.",
+    additional_tools=[],
+    on_user_input_request=UserInputImpl(),
+    on_permission_request=PermissionsImpl(),
+    on_custom_tool_request=None,
+  )
 
-    reply = await session.send_and_wait_async("Hello! What can you do?")
-    print(reply)
+  reply = await session.send_and_wait_async("Hello! What can you do?")
+  print(reply)
 
 
 asyncio.run(main())
