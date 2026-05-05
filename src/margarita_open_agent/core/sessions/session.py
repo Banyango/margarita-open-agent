@@ -1,6 +1,7 @@
 import asyncio
 import uuid
 from collections.abc import AsyncIterator
+from typing import Literal
 
 from margarita_open_agent.core.interfaces import (
     PermissionCallbackHandler,
@@ -32,6 +33,7 @@ class AgentSession:
 
     def __init__(
         self,
+        backend: Literal["ollama", "openai"],
         model: str,
         system_message: str,
         additional_tools: list[ToolDefinition],
@@ -39,6 +41,7 @@ class AgentSession:
         on_permission_request: PermissionCallbackHandler,
         on_custom_tool_request: UserToolCallbackHandler | None,
     ):
+        self.backend = backend
         self.model = model
         self.system_message = system_message
         self.additional_tools = additional_tools
@@ -84,7 +87,7 @@ class AgentSession:
         if self.on_custom_tool_request:
             container.override.set(UserToolCallbackHandler, self.on_custom_tool_request)
 
-        llm_client = await container.get(LLMClient)
+        llm_client = await container.get(LLMClient, qualifier=self.backend)
         tool_executor = await container.get(ToolRegistry)
 
         tools = self.additional_tools + tool_executor.get_tool_definitions()

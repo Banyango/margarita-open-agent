@@ -105,7 +105,7 @@ OLLAMA_MODEL_CONFIG: dict[str, ModelConfig] = {
 }
 
 
-@injectable(as_type=LLMClient)
+@injectable(as_type=LLMClient, qualifier="ollama")
 class OllamaLLMClient(LLMClient):
     def __init__(self, client: AsyncClient):
         """Initialize the Ollama LLM client wrapper.
