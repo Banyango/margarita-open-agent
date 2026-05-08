@@ -1,6 +1,6 @@
 [project]
 name = "margarita-open-agent"
-version = "0.1.4rc1"
+version = "0.1.4"
 description = "Open Agent for the Margarita Agent Framework"
 requires-python = ">=3.12"
 dependencies = [
